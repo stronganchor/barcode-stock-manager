@@ -62,7 +62,8 @@ function barcode_stock_manager_page() {
 
             if (rearCameraId) {
                 codeReader.decodeFromInputVideoDevice(rearCameraId, 'video', {
-                    videoFacingMode: 'environment'
+                    videoFacingMode: 'environment',
+                    focusMode: 'continuous'
                 })
                     .then(function(result) {
                         $('#barcode').val(result.text);
