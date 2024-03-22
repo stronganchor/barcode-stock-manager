@@ -1,15 +1,15 @@
 <?php
 /*
 Plugin Name: Barcode Stock Manager
-Description: A simple barcode stock management plugin for WooCommerce with barcode scanning.
-Version: 1.0
+Description: A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
+Version: 1.0.2
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
 
-// Enqueue QuaggaJS library
+// Enqueue ZXing library
 function barcode_stock_manager_enqueue_scripts() {
-    wp_enqueue_script('quagga', 'https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js', array(), '0.12.1', true);
+    wp_enqueue_script('zxing', 'https://unpkg.com/@zxing/library@latest/umd/index.min.js', array(), '0.18.2', true);
 }
 add_action('admin_enqueue_scripts', 'barcode_stock_manager_enqueue_scripts');
 
@@ -25,17 +25,14 @@ function barcode_stock_manager_page() {
     <div class="wrap">
         <h1>Barcode Stock Manager</h1>
         <div id="scanner-container">
-            <div id="interactive" class="viewport"></div>
+            <video id="video" width="300" height="200"></video>
             <div class="controls">
                 <button id="startButton">Start Scanner</button>
                 <button id="resetButton">Reset Scanner</button>
-				<div id="barcodeLabel">
-					Barcode will show here
-				</div>
+                <div id="barcodeLabel">
+                    Barcode will show here
+                </div>
             </div>
-        </div>
-        <div id="result_strip">
-            <ul class="collector"></ul>
         </div>
         <form method="post" action="">
             <input type="hidden" id="barcode" name="barcode">
@@ -44,60 +41,67 @@ function barcode_stock_manager_page() {
         </form>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-    var App = {
-        init: function() {
-            var self = this;
-
-            Quagga.init(this.state, function(err) {
-                if (err) {
-                    console.log(err);
-                    return;
-                }
-                Quagga.start();
+    var codeReader;
+	function startScanner() {
+		codeReader = new ZXing.BrowserBarcodeReader();
+		navigator.mediaDevices.enumerateDevices()
+        .then(function(devices) {
+            var videoDevices = devices.filter(function(device) {
+                return device.kind === 'videoinput';
             });
 
-            Quagga.onDetected(function(result) {
-                var code = result.codeResult.code;
-                document.getElementById('barcode').value = code;
-				document.getElementById('barcodeLabel').innerText = code;
-				console.log(code);
-                Quagga.stop();
-            });
-        },
-        state: {
-            inputStream: {
-                type: "LiveStream",
-                constraints: {
-                    width: 640,
-                    height: 480,
-                    facingMode: "environment"
+            var rearCameraId = null;
+            videoDevices.forEach(function(device) {
+                if (device.label.toLowerCase().includes('back') ||
+                    device.label.toLowerCase().includes('rear')) {
+                    rearCameraId = device.deviceId;
                 }
-            },
-            locator: {
-                patchSize: "medium",
-                halfSample: true
-            },
-            numOfWorkers: 2,
-            frequency: 10,
-            decoder: {
-                readers: ["ean_reader"]
-            },
-            locate: true
+            });
+
+            if (rearCameraId) {
+                codeReader.decodeFromInputVideoDevice(rearCameraId, 'video', {
+                    videoFacingMode: 'environment'
+                })
+                    .then(function(result) {
+                        $('#barcode').val(result.text);
+                        $('#barcodeLabel').text(result.text);
+                        $('#video').hide();
+                    })
+                    .catch(function(err) {
+                        console.error(err);
+                    });
+            } else {
+                console.error('No rear-facing camera found.');
+            }
+        })
+        .catch(function(err) {
+            console.error(err);
+        });
+	}
+
+    function stopScanner() {
+        if (codeReader) {
+            codeReader.reset();
+            codeReader = null;
         }
-    };
+    }
 
-    document.getElementById('startButton').addEventListener('click', function() {
-        App.init();
+    $('#startButton').on('click', function() {
+        $('#video').show();
+        startScanner();
     });
 
-    document.getElementById('resetButton').addEventListener('click', function() {
-        Quagga.stop();
-        document.getElementById('barcode').value = '';
+    $('#resetButton').on('click', function() {
+        stopScanner();
+        $('#barcode').val('');
+        $('#barcodeLabel').text('Barcode will show here');
+        $('#video').show();
     });
     </script>
     <?php
-    
+
     if (isset($_POST['action'])) {
         $barcode = sanitize_text_field($_POST['barcode']);
         $action = sanitize_text_field($_POST['action']);
