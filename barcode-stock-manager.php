@@ -2,7 +2,7 @@
 /*
 Plugin Name: Barcode Stock Manager
 Description: A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
-Version: 1.1.0
+Version: 1.1.1
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
@@ -19,6 +19,27 @@ add_action('admin_menu', 'barcode_stock_manager_menu');
 function barcode_stock_manager_menu() {
     add_menu_page('Barcode Stock Manager', 'Barcode Stock Manager', 'manage_options', 'barcode-stock-manager', 'barcode_stock_manager_page');
 }
+
+// Add custom wholesale cost field to product
+function add_wholesale_cost_field() {
+    woocommerce_wp_text_input(
+        array(
+            'id'          => '_wholesale_cost',
+            'label'       => __('Wholesale Cost', 'woocommerce'),
+            'placeholder' => '',
+            'desc_tip'    => true,
+            'description' => __('Enter the wholesale cost of the product.', 'woocommerce'),
+        )
+    );
+}
+add_action('woocommerce_product_options_pricing', 'add_wholesale_cost_field');
+
+// Save custom wholesale cost field
+function save_wholesale_cost_field($post_id) {
+    $wholesale_cost = isset($_POST['_wholesale_cost']) ? sanitize_text_field($_POST['_wholesale_cost']) : '';
+    update_post_meta($post_id, '_wholesale_cost', $wholesale_cost);
+}
+add_action('woocommerce_process_product_meta', 'save_wholesale_cost_field');
 
 // Plugin page content
 function barcode_stock_manager_page() {
@@ -40,6 +61,7 @@ function barcode_stock_manager_page() {
             <img id="product-image" src="" alt="Product Image" width="100">
             <p><strong>Product Name:</strong> <span id="product-name"></span></p>
             <p><strong>Price:</strong> <span id="product-price"></span></p>
+            <p><strong>Wholesale Cost:</strong> <span id="product-wholesale-cost"></span></p>
             <p><strong>Current Stock:</strong> <span id="current-stock"></span></p>
         </div>
         <form method="post" action="" id="stock-form" style="display: none;">
@@ -49,6 +71,8 @@ function barcode_stock_manager_page() {
                 <input type="text" id="new-product-name" name="new_product_name"><br>
                 <label for="sale-price">Sale Price:</label>
                 <input type="number" id="sale-price" name="sale_price" min="0" step="0.01"><br>
+                <label for="wholesale-price">Wholesale Price:</label>
+                <input type="number" id="wholesale-price" name="wholesale_price" min="0" step="0.01"><br>
             </div>
             <label for="quantity">Quantity:</label>
             <input type="number" id="quantity" name="quantity" min="1" value="1"><br>
@@ -145,6 +169,7 @@ function barcode_stock_manager_page() {
                     }
                     $('#product-name').text(response.name);
                     $('#product-price').html(response.price);
+                    $('#product-wholesale-cost').text(response.wholesale_cost);
                     $('#current-stock').text(response.stock);
                     $('#new-product-fields').hide();
                     $('#decrease-stock-btn').show();
@@ -194,6 +219,7 @@ function barcode_stock_manager_page() {
             if ($action === 'Increase Stock') {
                 $new_product_name = sanitize_text_field($_POST['new_product_name']);
                 $sale_price = floatval($_POST['sale_price']);
+                $wholesale_price = floatval($_POST['wholesale_price']);
                 // Create a new product
                 $product = new WC_Product();
                 $product->set_name($new_product_name);
@@ -203,8 +229,9 @@ function barcode_stock_manager_page() {
                 $product->set_stock_quantity($quantity);
                 $product->set_price($sale_price);
                 $product->set_regular_price($sale_price);
+                $product->update_meta_data('_wholesale_cost', $wholesale_price);
                 $product->save();
-                echo '<p>New product "' . $new_product_name . '" created with stock ' . $quantity . ' and sale price ' . wc_price($sale_price) . '.</p>';
+                echo '<p>New product "' . $new_product_name . '" created with stock ' . $quantity . ', sale price ' . wc_price($sale_price) . ', and wholesale price ' . wc_price($wholesale_price) . '.</p>';
             } else {
                 echo '<p>Product not found.</p>';
             }
@@ -229,12 +256,16 @@ function check_product_exists() {
         // Get the formatted price HTML
         $formatted_price = $product->get_price_html();
 
+        // Get the wholesale cost
+        $wholesale_cost = get_post_meta($product_id, '_wholesale_cost', true);
+
         $response = array(
             'exists' => true,
             'name' => $product->get_name(),
             'image' => $image_url,
             'price' => $formatted_price,
-            'stock' => $product->get_stock_quantity()
+            'stock' => $product->get_stock_quantity(),
+            'wholesale_cost' => $wholesale_cost
         );
     } else {
         $response = array('exists' => false);
