@@ -144,7 +144,7 @@ function barcode_stock_manager_page() {
                         $('#product-image').attr('src', '<?php echo wc_placeholder_img_src(); ?>');
                     }
                     $('#product-name').text(response.name);
-                    $('#product-price').text(response.price);
+                    $('#product-price').html(response.price);
                     $('#current-stock').text(response.stock);
                     $('#new-product-fields').hide();
                     $('#decrease-stock-btn').show();
@@ -225,11 +225,15 @@ function check_product_exists() {
         if ($image_id) {
             $image_url = wp_get_attachment_url($image_id);
         }
+        
+        // Get the formatted price HTML
+        $formatted_price = $product->get_price_html();
+
         $response = array(
             'exists' => true,
             'name' => $product->get_name(),
             'image' => $image_url,
-            'price' => wc_price($product->get_price()),
+            'price' => $formatted_price,
             'stock' => $product->get_stock_quantity()
         );
     } else {
