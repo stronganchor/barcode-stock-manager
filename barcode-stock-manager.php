@@ -2,7 +2,7 @@
 /*
 Plugin Name: Barcode Stock Manager
 Description: A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
-Version: 1.0.2
+Version: 1.0.4
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
@@ -28,14 +28,23 @@ function barcode_stock_manager_page() {
             <video id="video" width="300" height="200"></video>
             <div class="controls">
                 <button id="startButton">Start Scanner</button>
-                <button id="resetButton">Reset Scanner</button>
                 <div id="barcodeLabel">
                     Barcode will show here
                 </div>
             </div>
         </div>
+        <div id="product-info" style="display: none;">
+            <img id="product-image" src="" alt="Product Image" width="100">
+            <p id="product-name"></p>
+        </div>
         <form method="post" action="">
             <input type="hidden" id="barcode" name="barcode">
+            <div id="new-product-fields" style="display: none;">
+                <label for="new-product-name">Product Name:</label>
+                <input type="text" id="new-product-name" name="new_product_name"><br>
+            </div>
+            <label for="quantity">Quantity:</label>
+            <input type="number" id="quantity" name="quantity" min="1" value="1"><br>
             <input type="submit" name="action" value="Increase Stock">
             <input type="submit" name="action" value="Decrease Stock">
         </form>
@@ -73,6 +82,7 @@ function barcode_stock_manager_page() {
 	                        $('#barcode').val(result.text);
 	                        $('#barcodeLabel').text(result.text);
 	                        $('#video').hide();
+	                        checkProduct(result.text);
 	                    })
 	                    .catch(function(err) {
 	                        console.error(err);
@@ -104,18 +114,37 @@ function barcode_stock_manager_page() {
         startScanner();
     });
 
-    $('#resetButton').on('click', function() {
-        stopScanner();
-        $('#barcode').val('');
-        $('#barcodeLabel').text('Barcode will show here');
-        $('#video').show();
-    });
+    function checkProduct(barcode) {
+        $.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            method: 'POST',
+            data: {
+                action: 'check_product_exists',
+                barcode: barcode
+            },
+            success: function(response) {
+                if (response.exists) {
+                    $('#product-info').show();
+                    $('#product-image').attr('src', response.image);
+                    $('#product-name').text(response.name);
+                    $('#new-product-fields').hide();
+                } else {
+                    $('#product-info').hide();
+                    $('#new-product-fields').show();
+                }
+            },
+            error: function() {
+                alert('An error occurred while checking the product.');
+            }
+        });
+    }
     </script>
     <?php
 
     if (isset($_POST['action'])) {
         $barcode = sanitize_text_field($_POST['barcode']);
         $action = sanitize_text_field($_POST['action']);
+        $quantity = intval($_POST['quantity']);
 
         // Find the product by barcode (assuming barcode is stored in SKU field)
         $product_id = wc_get_product_id_by_sku($barcode);
@@ -123,34 +152,55 @@ function barcode_stock_manager_page() {
         if ($product_id) {
             $product = wc_get_product($product_id);
             if ($action === 'Increase Stock') {
-                $new_stock = $product->get_stock_quantity() + 1;
+                $new_stock = $product->get_stock_quantity() + $quantity;
                 $product->set_stock_quantity($new_stock);
                 $product->save();
-                echo '<p>Stock increased by 1. New stock: ' . $new_stock . '</p>';
+                echo '<p>Stock increased by ' . $quantity . '. New stock: ' . $new_stock . '</p>';
             } elseif ($action === 'Decrease Stock') {
                 $stock = $product->get_stock_quantity();
-                if ($stock > 0) {
-                    $new_stock = $stock - 1;
+                if ($stock >= $quantity) {
+                    $new_stock = $stock - $quantity;
                     $product->set_stock_quantity($new_stock);
                     $product->save();
-                    echo '<p>Stock decreased by 1. New stock: ' . $new_stock . '</p>';
+                    echo '<p>Stock decreased by ' . $quantity . '. New stock: ' . $new_stock . '</p>';
                 } else {
-                    echo '<p>Stock is already 0. Cannot decrease further.</p>';
+                    echo '<p>Insufficient stock. Cannot decrease by ' . $quantity . '.</p>';
                 }
             }
         } else {
             if ($action === 'Increase Stock') {
+                $new_product_name = sanitize_text_field($_POST['new_product_name']);
                 // Create a new product
                 $product = new WC_Product();
-                $product->set_name('New Product');
+                $product->set_name($new_product_name);
                 $product->set_status('publish');
                 $product->set_sku($barcode);
-                $product->set_stock_quantity(1);
+                $product->set_stock_quantity($quantity);
                 $product->save();
-                echo '<p>New product created with stock 1.</p>';
+                echo '<p>New product "' . $new_product_name . '" created with stock ' . $quantity . '.</p>';
             } else {
                 echo '<p>Product not found.</p>';
             }
         }
     }
+}
+
+// AJAX handler for checking if a product exists
+add_action('wp_ajax_check_product_exists', 'check_product_exists');
+function check_product_exists() {
+    $barcode = sanitize_text_field($_POST['barcode']);
+    $product_id = wc_get_product_id_by_sku($barcode);
+
+    if ($product_id) {
+        $product = wc_get_product($product_id);
+        $response = array(
+            'exists' => true,
+            'name' => $product->get_name(),
+            'image' => wp_get_attachment_url($product->get_image_id())
+        );
+    } else {
+        $response = array('exists' => false);
+    }
+
+    wp_send_json($response);
 }
