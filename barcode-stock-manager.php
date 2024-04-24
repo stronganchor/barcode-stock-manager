@@ -2,7 +2,7 @@
 /*
 Plugin Name: Barcode Stock Manager
 Description: A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
-Version: 1.1.1
+Version: 1.1.2
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
@@ -64,7 +64,7 @@ function barcode_stock_manager_page() {
             <p><strong>Wholesale Cost:</strong> <span id="product-wholesale-cost"></span></p>
             <p><strong>Current Stock:</strong> <span id="current-stock"></span></p>
         </div>
-        <form method="post" action="" id="stock-form" style="display: none;">
+        <form method="post" action="" id="stock-form" style="display: none;" enctype="multipart/form-data">
             <input type="hidden" id="barcode" name="barcode">
             <div id="new-product-fields" style="display: none;">
                 <label for="new-product-name">Product Name:</label>
@@ -73,6 +73,8 @@ function barcode_stock_manager_page() {
                 <input type="number" id="sale-price" name="sale_price" min="0" step="0.01"><br>
                 <label for="wholesale-price">Wholesale Price:</label>
                 <input type="number" id="wholesale-price" name="wholesale_price" min="0" step="0.01"><br>
+                <label for="product-image-upload">Product Image:</label>
+                <input type="file" id="product-image-upload" name="product_image" accept="image/*"><br>
             </div>
             <label for="quantity">Quantity:</label>
             <input type="number" id="quantity" name="quantity" min="1" value="1"><br>
@@ -230,6 +232,15 @@ function barcode_stock_manager_page() {
                 $product->set_price($sale_price);
                 $product->set_regular_price($sale_price);
                 $product->update_meta_data('_wholesale_cost', $wholesale_price);
+
+                // Handle product image upload
+                if (!empty($_FILES['product_image']['name'])) {
+                    $attachment_id = media_handle_upload('product_image', 0);
+                    if (!is_wp_error($attachment_id)) {
+                        $product->set_image_id($attachment_id);
+                    }
+                }
+
                 $product->save();
                 echo '<p>New product "' . $new_product_name . '" created with stock ' . $quantity . ', sale price ' . wc_price($sale_price) . ', and wholesale price ' . wc_price($wholesale_price) . '.</p>';
             } else {
