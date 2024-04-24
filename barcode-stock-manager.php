@@ -45,41 +45,51 @@ function barcode_stock_manager_page() {
     <script>
     var codeReader;
 	function startScanner() {
-		codeReader = new ZXing.BrowserBarcodeReader();
-		navigator.mediaDevices.enumerateDevices()
-        .then(function(devices) {
-            var videoDevices = devices.filter(function(device) {
-                return device.kind === 'videoinput';
-            });
-
-            var rearCameraId = null;
-            videoDevices.forEach(function(device) {
-                if (device.label.toLowerCase().includes('back') ||
-                    device.label.toLowerCase().includes('rear')) {
-                    rearCameraId = device.deviceId;
-                }
-            });
-
-            if (rearCameraId) {
-                codeReader.decodeFromInputVideoDevice(rearCameraId, 'video', {
-                    videoFacingMode: 'environment',
-                    focusMode: 'continuous'
-                })
-                    .then(function(result) {
-                        $('#barcode').val(result.text);
-                        $('#barcodeLabel').text(result.text);
-                        $('#video').hide();
-                    })
-                    .catch(function(err) {
-                        console.error(err);
-                    });
-            } else {
-                console.error('No rear-facing camera found.');
-            }
-        })
-        .catch(function(err) {
-            console.error(err);
-        });
+	    codeReader = new ZXing.BrowserBarcodeReader();
+	    navigator.mediaDevices.enumerateDevices()
+	        .then(function(devices) {
+	            var videoDevices = devices.filter(function(device) {
+	                return device.kind === 'videoinput';
+	            });
+	
+	            var selectedCameraId = null;
+	            videoDevices.forEach(function(device) {
+	                if (device.label.toLowerCase().includes('back') ||
+	                    device.label.toLowerCase().includes('rear')) {
+	                    selectedCameraId = device.deviceId;
+	                }
+	            });
+	
+	            if (!selectedCameraId && videoDevices.length > 0) {
+	                selectedCameraId = videoDevices[0].deviceId;
+	            }
+	
+	            if (selectedCameraId) {
+	                codeReader.decodeFromInputVideoDevice(selectedCameraId, 'video', {
+	                    videoFacingMode: 'environment',
+	                    focusMode: 'continuous'
+	                })
+	                    .then(function(result) {
+	                        $('#barcode').val(result.text);
+	                        $('#barcodeLabel').text(result.text);
+	                        $('#video').hide();
+	                    })
+	                    .catch(function(err) {
+	                        console.error(err);
+	                        if (err.name === 'NotAllowedError') {
+	                            alert('Camera permission denied');
+	                        } else {
+	                            alert('An error occurred during scanning');
+	                        }
+	                    });
+	            } else {
+	                alert('No camera found on this device');
+	            }
+	        })
+	        .catch(function(err) {
+	            console.error(err);
+	            alert('An error occurred while accessing the camera');
+	        });
 	}
 
     function stopScanner() {
