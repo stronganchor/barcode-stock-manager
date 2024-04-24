@@ -2,7 +2,7 @@
 /*
 Plugin Name: Barcode Stock Manager
 Description: A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
-Version: 1.0.5
+Version: 1.0.6
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
@@ -37,7 +37,7 @@ function barcode_stock_manager_page() {
             <img id="product-image" src="" alt="Product Image" width="100">
             <p id="product-name"></p>
         </div>
-        <form method="post" action="">
+        <form method="post" action="" id="stock-form" style="display: none;">
             <input type="hidden" id="barcode" name="barcode">
             <div id="new-product-fields" style="display: none;">
                 <label for="new-product-name">Product Name:</label>
@@ -140,6 +140,7 @@ function barcode_stock_manager_page() {
                     $('#product-info').hide();
                     $('#new-product-fields').show();
                 }
+                $('#stock-form').show();
             },
             error: function() {
                 alert('An error occurred while checking the product.');
