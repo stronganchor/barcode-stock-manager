@@ -2,7 +2,7 @@
 /*
 Plugin Name: Barcode Stock Manager
 Description: A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
-Version: 1.0.8
+Version: 1.1.0
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
@@ -29,9 +29,9 @@ function barcode_stock_manager_page() {
             <video id="video" width="300" height="200"></video>
             <div class="controls">
                 <button id="startButton">Start Scanner</button>
-		<div id="barcodeLabel"></div>
             </div>
         </div>
+        <div id="barcodeLabel" style="display: none;"></div>
         <div id="loading-animation" style="display: none;">
             <div class="spinner"></div>
             <p>Loading...</p>
@@ -39,6 +39,7 @@ function barcode_stock_manager_page() {
         <div id="product-info" style="display: none;">
             <img id="product-image" src="" alt="Product Image" width="100">
             <p><strong>Product Name:</strong> <span id="product-name"></span></p>
+            <p><strong>Price:</strong> <span id="product-price"></span></p>
             <p><strong>Current Stock:</strong> <span id="current-stock"></span></p>
         </div>
         <form method="post" action="" id="stock-form" style="display: none;">
@@ -52,7 +53,7 @@ function barcode_stock_manager_page() {
             <label for="quantity">Quantity:</label>
             <input type="number" id="quantity" name="quantity" min="1" value="1"><br>
             <input type="submit" name="action" value="Increase Stock">
-            <input type="submit" name="action" value="Decrease Stock">
+            <input type="submit" name="action" value="Decrease Stock" id="decrease-stock-btn">
         </form>
     </div>
 
@@ -90,7 +91,7 @@ function barcode_stock_manager_page() {
 	                })
 	                    .then(function(result) {
 	                        $('#barcode').val(result.text);
-				$('#barcodeLabel').text(result.text);
+	                        $('#barcodeLabel').text('Barcode: ' + result.text).show();
 	                        $('#video').hide();
 	                        $('#loading-animation').show();
 	                        checkProduct(result.text);
@@ -143,11 +144,14 @@ function barcode_stock_manager_page() {
                         $('#product-image').attr('src', '<?php echo wc_placeholder_img_src(); ?>');
                     }
                     $('#product-name').text(response.name);
+                    $('#product-price').text(response.price);
                     $('#current-stock').text(response.stock);
                     $('#new-product-fields').hide();
+                    $('#decrease-stock-btn').show();
                 } else {
                     $('#product-info').hide();
                     $('#new-product-fields').show();
+                    $('#decrease-stock-btn').hide();
                 }
                 $('#stock-form').show();
             },
@@ -225,6 +229,7 @@ function check_product_exists() {
             'exists' => true,
             'name' => $product->get_name(),
             'image' => $image_url,
+            'price' => wc_price($product->get_price()),
             'stock' => $product->get_stock_quantity()
         );
     } else {
