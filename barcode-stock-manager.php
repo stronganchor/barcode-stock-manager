@@ -2,14 +2,15 @@
 /*
 Plugin Name: Barcode Stock Manager
 Description: A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
-Version: 1.0.6
+Version: 1.0.7
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
 
-// Enqueue ZXing library
+// Enqueue ZXing library and plugin scripts
 function barcode_stock_manager_enqueue_scripts() {
     wp_enqueue_script('zxing', 'https://unpkg.com/@zxing/library@latest/umd/index.min.js', array(), '0.18.2', true);
+    wp_enqueue_style('barcode-stock-manager-style', plugins_url('style.css', __FILE__));
 }
 add_action('admin_enqueue_scripts', 'barcode_stock_manager_enqueue_scripts');
 
@@ -33,9 +34,14 @@ function barcode_stock_manager_page() {
                 </div>
             </div>
         </div>
+        <div id="loading-animation" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
         <div id="product-info" style="display: none;">
             <img id="product-image" src="" alt="Product Image" width="100">
-            <p id="product-name"></p>
+            <p><strong>Product Name:</strong> <span id="product-name"></span></p>
+            <p><strong>Current Stock:</strong> <span id="current-stock"></span></p>
         </div>
         <form method="post" action="" id="stock-form" style="display: none;">
             <input type="hidden" id="barcode" name="barcode">
@@ -86,6 +92,7 @@ function barcode_stock_manager_page() {
 	                        $('#barcode').val(result.text);
 	                        $('#barcodeLabel').text(result.text);
 	                        $('#video').hide();
+	                        $('#loading-animation').show();
 	                        checkProduct(result.text);
 	                    })
 	                    .catch(function(err) {
@@ -127,6 +134,7 @@ function barcode_stock_manager_page() {
                 barcode: barcode
             },
             success: function(response) {
+                $('#loading-animation').hide();
                 if (response.exists) {
                     $('#product-info').show();
                     if (response.image) {
@@ -135,6 +143,7 @@ function barcode_stock_manager_page() {
                         $('#product-image').attr('src', '<?php echo wc_placeholder_img_src(); ?>');
                     }
                     $('#product-name').text(response.name);
+                    $('#current-stock').text(response.stock);
                     $('#new-product-fields').hide();
                 } else {
                     $('#product-info').hide();
@@ -143,6 +152,7 @@ function barcode_stock_manager_page() {
                 $('#stock-form').show();
             },
             error: function() {
+                $('#loading-animation').hide();
                 alert('An error occurred while checking the product.');
             }
         });
@@ -184,6 +194,7 @@ function barcode_stock_manager_page() {
                 $product->set_name($new_product_name);
                 $product->set_status('publish');
                 $product->set_sku($barcode);
+                $product->set_manage_stock(true);
                 $product->set_stock_quantity($quantity);
                 $product->save();
                 echo '<p>New product "' . $new_product_name . '" created with stock ' . $quantity . '.</p>';
@@ -210,7 +221,8 @@ function check_product_exists() {
         $response = array(
             'exists' => true,
             'name' => $product->get_name(),
-            'image' => $image_url
+            'image' => $image_url,
+            'stock' => $product->get_stock_quantity()
         );
     } else {
         $response = array('exists' => false);
