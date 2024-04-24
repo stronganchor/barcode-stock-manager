@@ -2,7 +2,7 @@
 /*
 Plugin Name: Barcode Stock Manager
 Description: A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
-Version: 1.0.7
+Version: 1.0.8
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
@@ -29,9 +29,7 @@ function barcode_stock_manager_page() {
             <video id="video" width="300" height="200"></video>
             <div class="controls">
                 <button id="startButton">Start Scanner</button>
-                <div id="barcodeLabel">
-                    Barcode will show here
-                </div>
+		<div id="barcodeLabel"></div>
             </div>
         </div>
         <div id="loading-animation" style="display: none;">
@@ -48,6 +46,8 @@ function barcode_stock_manager_page() {
             <div id="new-product-fields" style="display: none;">
                 <label for="new-product-name">Product Name:</label>
                 <input type="text" id="new-product-name" name="new_product_name"><br>
+                <label for="sale-price">Sale Price:</label>
+                <input type="number" id="sale-price" name="sale_price" min="0" step="0.01"><br>
             </div>
             <label for="quantity">Quantity:</label>
             <input type="number" id="quantity" name="quantity" min="1" value="1"><br>
@@ -90,7 +90,7 @@ function barcode_stock_manager_page() {
 	                })
 	                    .then(function(result) {
 	                        $('#barcode').val(result.text);
-	                        $('#barcodeLabel').text(result.text);
+				$('#barcodeLabel').text(result.text);
 	                        $('#video').hide();
 	                        $('#loading-animation').show();
 	                        checkProduct(result.text);
@@ -189,6 +189,7 @@ function barcode_stock_manager_page() {
         } else {
             if ($action === 'Increase Stock') {
                 $new_product_name = sanitize_text_field($_POST['new_product_name']);
+                $sale_price = floatval($_POST['sale_price']);
                 // Create a new product
                 $product = new WC_Product();
                 $product->set_name($new_product_name);
@@ -196,8 +197,10 @@ function barcode_stock_manager_page() {
                 $product->set_sku($barcode);
                 $product->set_manage_stock(true);
                 $product->set_stock_quantity($quantity);
+                $product->set_price($sale_price);
+                $product->set_regular_price($sale_price);
                 $product->save();
-                echo '<p>New product "' . $new_product_name . '" created with stock ' . $quantity . '.</p>';
+                echo '<p>New product "' . $new_product_name . '" created with stock ' . $quantity . ' and sale price ' . wc_price($sale_price) . '.</p>';
             } else {
                 echo '<p>Product not found.</p>';
             }
