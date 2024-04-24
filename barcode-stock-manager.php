@@ -2,7 +2,7 @@
 /*
 Plugin Name: Barcode Stock Manager
 Description: A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
-Version: 1.0.4
+Version: 1.0.5
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
@@ -53,6 +53,10 @@ function barcode_stock_manager_page() {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
     var codeReader;
+    $(document).ready(function() {
+        startScanner();
+    });
+
 	function startScanner() {
 	    codeReader = new ZXing.BrowserBarcodeReader();
 	    navigator.mediaDevices.enumerateDevices()
@@ -113,7 +117,7 @@ function barcode_stock_manager_page() {
         $('#video').show();
         startScanner();
     });
-
+	    
     function checkProduct(barcode) {
         $.ajax({
             url: '<?php echo admin_url('admin-ajax.php'); ?>',
@@ -125,7 +129,11 @@ function barcode_stock_manager_page() {
             success: function(response) {
                 if (response.exists) {
                     $('#product-info').show();
-                    $('#product-image').attr('src', response.image);
+                    if (response.image) {
+                        $('#product-image').attr('src', response.image);
+                    } else {
+                        $('#product-image').attr('src', '<?php echo wc_placeholder_img_src(); ?>');
+                    }
                     $('#product-name').text(response.name);
                     $('#new-product-fields').hide();
                 } else {
@@ -193,10 +201,15 @@ function check_product_exists() {
 
     if ($product_id) {
         $product = wc_get_product($product_id);
+        $image_id = $product->get_image_id();
+        $image_url = '';
+        if ($image_id) {
+            $image_url = wp_get_attachment_url($image_id);
+        }
         $response = array(
             'exists' => true,
             'name' => $product->get_name(),
-            'image' => wp_get_attachment_url($product->get_image_id())
+            'image' => $image_url
         );
     } else {
         $response = array('exists' => false);
