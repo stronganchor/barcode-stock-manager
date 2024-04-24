@@ -2,7 +2,7 @@
 /*
 Plugin Name: Barcode Stock Manager
 Description: A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
-Version: 1.1.2
+Version: 1.1.3
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
@@ -75,6 +75,8 @@ function barcode_stock_manager_page() {
                 <input type="number" id="wholesale-price" name="wholesale_price" min="0" step="0.01"><br>
                 <label for="product-image-upload">Product Image:</label>
                 <input type="file" id="product-image-upload" name="product_image" accept="image/*"><br>
+                <label for="product-image-capture">Capture Product Image:</label>
+                <input type="file" id="product-image-capture" name="product_image_capture" accept="image/*" capture="camera"><br>
             </div>
             <label for="quantity">Quantity:</label>
             <input type="number" id="quantity" name="quantity" min="1" value="1"><br>
@@ -236,6 +238,11 @@ function barcode_stock_manager_page() {
                 // Handle product image upload
                 if (!empty($_FILES['product_image']['name'])) {
                     $attachment_id = media_handle_upload('product_image', 0);
+                    if (!is_wp_error($attachment_id)) {
+                        $product->set_image_id($attachment_id);
+                    }
+                } elseif (!empty($_FILES['product_image_capture']['name'])) {
+                    $attachment_id = media_handle_upload('product_image_capture', 0);
                     if (!is_wp_error($attachment_id)) {
                         $product->set_image_id($attachment_id);
                     }
