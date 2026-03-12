@@ -1,11 +1,20 @@
 <?php
 /*
 Plugin Name: Barcode Stock Manager
-Description: A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
+Description: DEPRECATED. A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
 Version: 1.1.3
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
+
+add_action('admin_notices', 'barcode_stock_manager_deprecated_notice');
+function barcode_stock_manager_deprecated_notice() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
+    echo '<div class="notice notice-warning"><p><strong>Barcode Stock Manager is deprecated.</strong> Do not deploy it on new sites or depend on further maintenance.</p></div>';
+}
 
 // Enqueue ZXing library and plugin scripts
 function barcode_stock_manager_enqueue_scripts() {
@@ -43,6 +52,11 @@ add_action('woocommerce_process_product_meta', 'save_wholesale_cost_field');
 
 // Plugin page content
 function barcode_stock_manager_page() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
+    $check_product_nonce = wp_create_nonce('barcode_stock_manager_check_product');
     ?>
     <div class="wrap">
         <h1>Barcode Stock Manager</h1>
@@ -65,6 +79,7 @@ function barcode_stock_manager_page() {
             <p><strong>Current Stock:</strong> <span id="current-stock"></span></p>
         </div>
         <form method="post" action="" id="stock-form" style="display: none;" enctype="multipart/form-data">
+            <?php wp_nonce_field('barcode_stock_manager_action', 'barcode_stock_manager_nonce'); ?>
             <input type="hidden" id="barcode" name="barcode">
             <div id="new-product-fields" style="display: none;">
                 <label for="new-product-name">Product Name:</label>
@@ -160,7 +175,8 @@ function barcode_stock_manager_page() {
             method: 'POST',
             data: {
                 action: 'check_product_exists',
-                barcode: barcode
+                barcode: barcode,
+                nonce: '<?php echo esc_js($check_product_nonce); ?>'
             },
             success: function(response) {
                 $('#loading-animation').hide();
@@ -194,6 +210,8 @@ function barcode_stock_manager_page() {
     <?php
 
     if (isset($_POST['action'])) {
+        check_admin_referer('barcode_stock_manager_action', 'barcode_stock_manager_nonce');
+
         $barcode = sanitize_text_field($_POST['barcode']);
         $action = sanitize_text_field($_POST['action']);
         $quantity = intval($_POST['quantity']);
@@ -260,6 +278,12 @@ function barcode_stock_manager_page() {
 // AJAX handler for checking if a product exists
 add_action('wp_ajax_check_product_exists', 'check_product_exists');
 function check_product_exists() {
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => 'Unauthorized'), 403);
+    }
+
+    check_ajax_referer('barcode_stock_manager_check_product', 'nonce');
+
     $barcode = sanitize_text_field($_POST['barcode']);
     $product_id = wc_get_product_id_by_sku($barcode);
 
