@@ -2,7 +2,7 @@
 /*
 Plugin Name: Barcode Stock Manager
 Description: DEPRECATED. A simple barcode stock management plugin for WooCommerce with barcode scanning using ZXing.
-Version: 1.1.3
+Version: 1.1.4
 Author: LayLay Bebe
 Author URI: https://laylaybebe.com
 */
